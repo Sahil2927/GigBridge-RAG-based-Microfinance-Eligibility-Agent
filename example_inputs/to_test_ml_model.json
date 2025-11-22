@@ -1,0 +1,20 @@
+{
+    "LoanID": "I38PQUQS",
+    "Age": 56,
+    "Income": 85994,
+    "LoanAmount": 50587,
+    "CreditScore": 520,
+    "MonthsEmployed": 150,
+    "NumCreditLines": 4,
+    "InterestRate": 15.23,
+    "LoanTerm": 36,
+    "DTIRatio": 0.44,
+    "Education": "Bachelor's",
+    "EmploymentType": "Full-time",
+    "MaritalStatus": "Divorced",
+    "HasMortgage": "Yes",
+    "HasDependents": "No",
+    "LoanPurpose": "Other",
+    "HasCoSigner": "Yes"
+  }
+  

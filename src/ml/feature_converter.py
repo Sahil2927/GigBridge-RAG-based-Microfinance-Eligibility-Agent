@@ -1,8 +1,8 @@
 """
-Feature Converter Module
+Feature Converter Module - FIXED VERSION
 
-This module converts raw user inputs and profile data into the feature vector
-expected by the ML model.
+This module converts raw user inputs into the exact feature format expected by the ML model.
+The ML model expects ONLY the 16 structured loan features, nothing more.
 """
 
 import pandas as pd
@@ -13,132 +13,169 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def convert_profile_to_model_features(profile: Dict[str, Any]) -> pd.DataFrame:
+# Define the EXACT features the ML model expects (in order)
+ML_MODEL_FEATURES = [
+    "LoanID",
+    "Age", 
+    "Income",
+    "LoanAmount",
+    "CreditScore",
+    "MonthsEmployed",
+    "NumCreditLines",
+    "InterestRate",
+    "LoanTerm",
+    "DTIRatio",
+    "Education",
+    "EmploymentType",
+    "MaritalStatus",
+    "HasMortgage",
+    "HasDependents",
+    "LoanPurpose",
+    "HasCoSigner"
+]
+
+
+def convert_to_ml_features(raw_inputs: Dict[str, Any]) -> pd.DataFrame:
     """
-    Convert a user profile to model feature DataFrame.
+    Convert raw user inputs to ML model feature DataFrame.
     
-    This function maps the profile structure to the features expected by the model.
-    The model was trained on a CSV with columns that we need to infer or map.
+    CRITICAL: This function ONLY extracts the 16 structured features the model was trained on.
+    It completely ignores any unconventional data (mobile, psychometric, etc.)
     
     Args:
-        profile: User profile dictionary with demographics, mobile_metadata, etc.
+        raw_inputs: Dictionary with user inputs (may contain extra fields)
         
     Returns:
-        DataFrame with features matching model input format
+        DataFrame with EXACTLY the features the ML model expects
     """
-    features = {}
+    # Extract only the ML model features, using safe defaults for missing values
+    ml_data = {}
     
-    # Demographics
-    demo = profile.get("demographics", {})
-    features["Age"] = demo.get("age", 0)
-    features["Gender"] = demo.get("gender", "unknown")
-    features["MaritalStatus"] = demo.get("marital_status", "unknown")
-    features["EducationLevel"] = demo.get("education_level", "unknown")
-    features["Occupation"] = demo.get("occupation", "unknown")
-    features["MonthlyIncome"] = demo.get("monthly_income", 0.0)
-    features["IncomeSourceStability"] = demo.get("income_source_stability", 0.5)
+    for feature in ML_MODEL_FEATURES:
+        if feature in raw_inputs:
+            ml_data[feature] = raw_inputs[feature]
+        else:
+            # Provide safe defaults based on feature type
+            ml_data[feature] = _get_default_value(feature)
     
-    # Mobile metadata
-    mobile = profile.get("mobile_metadata", {})
-    features["AvgDailyCalls"] = _safe_float(mobile.get("avg_daily_calls", 0.0))
-    features["UniqueContacts30d"] = _safe_int(mobile.get("unique_contacts_30d", 0))
-    features["AirtimeTopupFrequency"] = _safe_float(mobile.get("airtime_topup_frequency", 0.0))
-    features["AvgTopupAmount"] = _safe_float(mobile.get("avg_topup_amount", 0.0))
-    features["DaysInactiveLast30"] = _safe_int(mobile.get("days_inactive_last_30", 0))
+    # Create DataFrame with exact column order
+    df = pd.DataFrame([ml_data])
     
-    # Psychometrics
-    psych = profile.get("psychometrics", {})
-    features["ConscientiousnessScore"] = _safe_float(psych.get("conscientiousness_score", 3.0))
+    # Ensure columns are in the exact order expected by the model
+    df = df[ML_MODEL_FEATURES]
     
-    # Financial behavior
-    fin = profile.get("financial_behavior", {})
-    features["SavingsFrequency"] = _safe_float(fin.get("savings_frequency", 0.0))
-    features["BillPaymentTimeliness"] = _safe_float(fin.get("bill_payment_timeliness", 0.5))
-    features["WalletBalanceLows90d"] = _safe_int(fin.get("wallet_balance_lows_last_90d", 0))
-    
-    # Social network
-    social = profile.get("social_network", {})
-    shg_membership = social.get("shg_membership", False)
-    features["SHGMembership"] = "Yes" if (shg_membership is True or shg_membership == "Yes") else "No"
-    features["PeerMonitoringStrength"] = _safe_float(social.get("peer_monitoring_strength", 0.0))
-    
-    # Loan history
-    loan = profile.get("loan_history", {})
-    features["PreviousLoans"] = _safe_int(loan.get("previous_loans", 0))
-    features["PreviousDefaults"] = _safe_int(loan.get("previous_defaults", 0))
-    features["PreviousLatePayments"] = _safe_int(loan.get("previous_late_payments", 0))
-    features["AvgRepaymentDelayDays"] = _safe_float(loan.get("avg_repayment_delay_days", 0.0))
-    
-    # HasCoSigner (default to No if not provided)
-    features["HasCoSigner"] = profile.get("has_cosigner", "No")
-    
-    # Create DataFrame
-    df = pd.DataFrame([features])
+    logger.info(f"Created ML feature DataFrame with {len(df.columns)} columns: {list(df.columns)}")
     
     return df
 
 
-def convert_raw_inputs_to_features(raw_inputs: Dict[str, Any]) -> pd.DataFrame:
+def extract_ml_features_only(profile: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Convert raw user inputs (from UI) to model feature DataFrame.
+    Extract only ML-relevant structured features from a full profile.
     
-    This is the main function that frontend should call. It accepts raw values
-    like numbers, strings, and converts them to the model format.
+    This is used when you have a complete profile with unconventional data,
+    but need to extract just the ML features.
     
     Args:
-        raw_inputs: Dictionary with raw input values from UI
+        profile: Full user profile with demographics, mobile_metadata, etc.
         
     Returns:
-        DataFrame with features matching model input format
+        Dictionary with only the ML model features
     """
-    # Build a profile-like structure from raw inputs
-    profile = {
-        "demographics": {
-            "age": raw_inputs.get("age", 30),
-            "gender": raw_inputs.get("gender", "unknown"),
-            "marital_status": raw_inputs.get("marital_status", "unknown"),
-            "education_level": raw_inputs.get("education_level", "unknown"),
-            "occupation": raw_inputs.get("occupation", "unknown"),
-            "monthly_income": raw_inputs.get("monthly_income", 0.0),
-            "income_source_stability": raw_inputs.get("income_source_stability", 0.5)
-        },
-        "mobile_metadata": {
-            "avg_daily_calls": raw_inputs.get("avg_daily_calls", 0.0),
-            "unique_contacts_30d": raw_inputs.get("unique_contacts_30d", 0),
-            "airtime_topup_frequency": raw_inputs.get("airtime_topup_frequency", 0.0),
-            "avg_topup_amount": raw_inputs.get("avg_topup_amount", 0.0),
-            "days_inactive_last_30": raw_inputs.get("days_inactive_last_30", 0)
-        },
-        "psychometrics": {
-            "conscientiousness_score": raw_inputs.get("conscientiousness_score", 3.0)
-        },
-        "financial_behavior": {
-            "savings_frequency": raw_inputs.get("savings_frequency", 0.0),
-            "bill_payment_timeliness": raw_inputs.get("bill_payment_timeliness", 0.5),
-            "wallet_balance_lows_last_90d": raw_inputs.get("wallet_balance_lows_last_90d", 0)
-        },
-        "social_network": {
-            "shg_membership": raw_inputs.get("shg_membership", False),
-            "peer_monitoring_strength": raw_inputs.get("peer_monitoring_strength", 0.0)
-        },
-        "loan_history": {
-            "previous_loans": raw_inputs.get("previous_loans", 0),
-            "previous_defaults": raw_inputs.get("previous_defaults", 0),
-            "previous_late_payments": raw_inputs.get("previous_late_payments", 0),
-            "avg_repayment_delay_days": raw_inputs.get("avg_repayment_delay_days", 0.0)
-        }
+    ml_features = {}
+    
+    # Extract from demographics
+    demo = profile.get("demographics", {})
+    ml_features["Age"] = demo.get("age", 30)
+    ml_features["Income"] = demo.get("monthly_income", 0.0)
+    ml_features["Education"] = demo.get("education_level", "High School")
+    ml_features["EmploymentType"] = demo.get("employment_type", "Full-time")
+    ml_features["MaritalStatus"] = demo.get("marital_status", "Single")
+    
+    # Extract loan-specific features (should be in profile root or loan_history)
+    loan = profile.get("loan_history", {})
+    ml_features["LoanID"] = profile.get("user_id", "UNKNOWN")
+    ml_features["LoanAmount"] = loan.get("current_loan_amount", 0.0)
+    ml_features["CreditScore"] = profile.get("credit_score", 650)
+    ml_features["MonthsEmployed"] = demo.get("months_employed", 24)
+    ml_features["NumCreditLines"] = loan.get("num_credit_lines", 2)
+    ml_features["InterestRate"] = loan.get("interest_rate", 10.0)
+    ml_features["LoanTerm"] = loan.get("loan_term", 36)
+    ml_features["DTIRatio"] = profile.get("dti_ratio", 0.3)
+    ml_features["HasMortgage"] = profile.get("has_mortgage", "No")
+    ml_features["HasDependents"] = profile.get("has_dependents", "No")
+    ml_features["LoanPurpose"] = loan.get("loan_purpose", "Other")
+    ml_features["HasCoSigner"] = profile.get("has_cosigner", "No")
+    
+    return ml_features
+
+
+def _get_default_value(feature_name: str) -> Any:
+    """
+    Provide safe default values for missing features based on feature name and type.
+    """
+    # String/categorical features
+    categorical_defaults = {
+        "LoanID": "UNKNOWN",
+        "Education": "High School",
+        "EmploymentType": "Full-time",
+        "MaritalStatus": "Single",
+        "HasMortgage": "No",
+        "HasDependents": "No",
+        "LoanPurpose": "Other",
+        "HasCoSigner": "No"
     }
     
-    # Add has_cosigner if provided
-    if "has_cosigner" in raw_inputs:
-        profile["has_cosigner"] = raw_inputs["has_cosigner"]
+    if feature_name in categorical_defaults:
+        return categorical_defaults[feature_name]
     
-    return convert_profile_to_model_features(profile)
+    # Numeric features - return appropriate numeric defaults
+    numeric_defaults = {
+        "Age": 30,
+        "Income": 50000.0,
+        "LoanAmount": 10000.0,
+        "CreditScore": 650,
+        "MonthsEmployed": 24,
+        "NumCreditLines": 2,
+        "InterestRate": 10.0,
+        "LoanTerm": 36,
+        "DTIRatio": 0.3
+    }
+    
+    return numeric_defaults.get(feature_name, 0)
+
+
+def validate_ml_features(df: pd.DataFrame) -> tuple[bool, List[str]]:
+    """
+    Validate that the DataFrame has exactly the features the ML model expects.
+    
+    Returns:
+        (is_valid, list_of_errors)
+    """
+    errors = []
+    
+    # Check column count
+    if len(df.columns) != len(ML_MODEL_FEATURES):
+        errors.append(f"Expected {len(ML_MODEL_FEATURES)} columns, got {len(df.columns)}")
+    
+    # Check column names and order
+    for i, expected_col in enumerate(ML_MODEL_FEATURES):
+        if i >= len(df.columns):
+            errors.append(f"Missing column: {expected_col}")
+        elif df.columns[i] != expected_col:
+            errors.append(f"Column mismatch at position {i}: expected '{expected_col}', got '{df.columns[i]}'")
+    
+    # Check for extra columns
+    extra_cols = set(df.columns) - set(ML_MODEL_FEATURES)
+    if extra_cols:
+        errors.append(f"Unexpected extra columns: {extra_cols}")
+    
+    return len(errors) == 0, errors
 
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
     """Safely convert value to float."""
-    if value == "NA" or value is None:
+    if value == "NA" or value is None or value == "":
         return default
     try:
         return float(value)
@@ -148,10 +185,9 @@ def _safe_float(value: Any, default: float = 0.0) -> float:
 
 def _safe_int(value: Any, default: int = 0) -> int:
     """Safely convert value to int."""
-    if value == "NA" or value is None:
+    if value == "NA" or value is None or value == "":
         return default
     try:
         return int(value)
     except (ValueError, TypeError):
         return default
-

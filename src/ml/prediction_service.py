@@ -1,17 +1,21 @@
 """
-Prediction Service Module
+Prediction Service - FIXED VERSION
 
-This module provides a high-level service for making loan predictions with
-SHAP explanations, consent handling, and robustness checks.
+Key changes:
+- Uses the fixed feature_converter to extract ONLY ML features
+- Clear separation: ML model gets structured features only
+- Telemetry and consent flows preserved
 """
 
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+
 import pandas as pd
+import numpy as np
 
 from src.ml.model_predictor import ModelPredictor
-from src.ml.feature_converter import convert_raw_inputs_to_features, convert_profile_to_model_features
+from src.ml.feature_converter import convert_to_ml_features, validate_ml_features
 from src.ml.telemetry import log_feature_distribution
 from src.memory.store import save_consented_submission, log_action
 
@@ -19,317 +23,263 @@ logger = logging.getLogger(__name__)
 
 
 class PredictionService:
-    """
-    Service for handling loan predictions with explanations and consent.
-    """
-    
     def __init__(self, model_path: Optional[str] = None):
-        """
-        Initialize the prediction service.
-        
-        Args:
-            model_path: Path to model file
-        """
         self.predictor = ModelPredictor(model_path)
-        self.recent_predictions = []  # For robustness checks
+        self.recent_predictions: List[Dict[str, Any]] = []
         self.max_recent_predictions = 100
-    
+
     def predict_from_raw_inputs(self, raw_inputs: Dict[str, Any], 
-                                consent: bool = False,
+                                consent: bool = False, 
                                 user_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Make a prediction from raw user inputs.
+        Make prediction from raw user inputs.
+        
+        IMPORTANT: raw_inputs should contain the structured ML features only:
+        - LoanID, Age, Income, LoanAmount, CreditScore, MonthsEmployed, 
+        - NumCreditLines, InterestRate, LoanTerm, DTIRatio, Education,
+        - EmploymentType, MaritalStatus, HasMortgage, HasDependents, 
+        - LoanPurpose, HasCoSigner
+        
+        Do NOT include unconventional data (mobile_metadata, psychometrics, etc.)
         
         Args:
-            raw_inputs: Dictionary with raw input values from UI
-            consent: Whether user consented to data storage
-            user_id: Optional user identifier
+            raw_inputs: Dictionary with structured ML features only
+            consent: Whether user has given consent
+            user_id: User identifier
             
         Returns:
-            Dictionary with prediction, probability, explanation, and metadata
+            Dictionary with prediction results
         """
         try:
-            # Convert raw inputs to features
-            features_df = convert_raw_inputs_to_features(raw_inputs)
+            if raw_inputs is None:
+                raise ValueError("raw_inputs is None")
+
+            if not self.predictor.is_loaded:
+                if not self.predictor.load_model():
+                    raise RuntimeError("Model load failed")
+
+            # Convert raw inputs to ML feature DataFrame
+            logger.info(f"Converting raw inputs with {len(raw_inputs)} fields to ML features")
+            ml_features_df = convert_to_ml_features(raw_inputs)
             
+            # Validate features
+            is_valid, errors = validate_ml_features(ml_features_df)
+            if not is_valid:
+                error_msg = f"ML feature validation failed: {errors}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
+            
+            logger.info(f"ML features validated successfully: {list(ml_features_df.columns)}")
+
             # Make prediction
-            prediction, probability, proba_array = self.predictor.predict(features_df)
-            
-            # Generate SHAP explanation
-            explanations = self.predictor.explain(features_df)
-            
-            # Check robustness
-            robustness = self.predictor.check_robustness(
-                features_df, prediction, probability, self.recent_predictions
+            preds, probs_pos, proba_matrix = self.predictor.predict(ml_features_df)
+
+            # Generate explanation (SHAP)
+            explanations = self.predictor.explain(ml_features_df)
+
+            # Robustness checks
+            robustness_list = self.predictor.check_robustness(
+                ml_features_df, preds, probs_pos, self.recent_predictions
             )
-            
-            # Store recent prediction for robustness checks
-            self.recent_predictions.append({
-                "prediction": prediction,
-                "probability": probability,
-                "timestamp": datetime.now().isoformat()
-            })
-            if len(self.recent_predictions) > self.max_recent_predictions:
-                self.recent_predictions.pop(0)
-            
-            # Format explanation
-            formatted_explanation = self._format_explanation(explanations, prediction)
-            
-            # Determine next step
-            next_step = self._get_next_step(prediction, probability)
-            
-            # Build response
-            response = {
-                "prediction": int(prediction),
-                "probability": float(probability),
-                "explanation": formatted_explanation,
-                "next_step": next_step,
-                "meta": {
-                    "confidence_low": robustness["confidence_low"],
-                    "confidence_reasons": robustness["reasons"],
-                    "probability_margin": robustness["probability_margin"],
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            
-            # Log telemetry (only if consented)
-            log_feature_distribution(features_df, user_id, consent)
-            
-            # Save with consent
-            if consent and user_id:
-                try:
-                    # Build profile for storage
-                    profile = {
-                        "user_id": user_id,
-                        "timestamp": datetime.now().isoformat(),
-                        "demographics": raw_inputs.get("demographics", {}),
-                        "mobile_metadata": {},
-                        "psychometrics": {},
-                        "financial_behavior": {},
-                        "social_network": {},
-                        "loan_history": {}
-                    }
-                    
-                    # Save submission
-                    save_consented_submission(
-                        user_id,
-                        profile,
-                        {
-                            "eligibility": "yes" if prediction == 1 else "no",
-                            "risk_score": 1.0 - probability,  # Convert to risk score
-                            "prediction": prediction,
-                            "probability": probability,
-                            "explanation": formatted_explanation
-                        }
-                    )
-                    log_action("prediction_with_consent", user_id, {"prediction": prediction})
-                except Exception as e:
-                    logger.error(f"Error saving consented submission: {e}")
-            else:
-                # Log without saving
-                log_action("prediction_no_consent", user_id, {"prediction": prediction})
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Error in prediction: {e}")
-            raise
-    
-    def predict_from_profile(self, profile: Dict[str, Any],
-                            consent: bool = False) -> Dict[str, Any]:
-        """
-        Make a prediction from a user profile.
-        
-        Args:
-            profile: User profile dictionary
-            consent: Whether user consented to data storage
-            
-        Returns:
-            Dictionary with prediction, probability, explanation, and metadata
-        """
-        try:
-            # Convert profile to features
-            features_df = convert_profile_to_model_features(profile)
-            
-            # Make prediction
-            prediction, probability, proba_array = self.predictor.predict(features_df)
-            
-            # Generate SHAP explanation
-            explanations = self.predictor.explain(features_df)
-            
-            # Check robustness
-            robustness = self.predictor.check_robustness(
-                features_df, prediction, probability, self.recent_predictions
-            )
-            
-            # Store recent prediction
-            self.recent_predictions.append({
-                "prediction": prediction,
-                "probability": probability,
-                "timestamp": datetime.now().isoformat()
-            })
-            if len(self.recent_predictions) > self.max_recent_predictions:
-                self.recent_predictions.pop(0)
-            
-            # Format explanation
-            formatted_explanation = self._format_explanation(explanations, prediction)
-            
-            # Determine next step
-            next_step = self._get_next_step(prediction, probability)
-            
-            # Build response
-            response = {
-                "prediction": int(prediction),
-                "probability": float(probability),
-                "explanation": formatted_explanation,
-                "next_step": next_step,
-                "meta": {
-                    "confidence_low": robustness["confidence_low"],
-                    "confidence_reasons": robustness["reasons"],
-                    "probability_margin": robustness["probability_margin"],
-                    "timestamp": datetime.now().isoformat()
-                }
-            }
-            
-            # Log telemetry (only if consented)
-            user_id = profile.get("user_id", f"user_{datetime.now().strftime('%Y%m%d%H%M%S')}")
-            log_feature_distribution(features_df, user_id, consent)
-            
-            # Save with consent
-            if consent:
-                try:
-                    save_consented_submission(
-                        user_id,
-                        profile,
-                        {
-                            "eligibility": "yes" if prediction == 1 else "no",
-                            "risk_score": 1.0 - probability,
-                            "prediction": prediction,
-                            "probability": probability,
-                            "explanation": formatted_explanation
-                        }
-                    )
-                    log_action("prediction_with_consent", user_id, {"prediction": prediction})
-                except Exception as e:
-                    logger.error(f"Error saving consented submission: {e}")
-            else:
-                log_action("prediction_no_consent", user_id, {"prediction": prediction})
-            
-            return response
-            
-        except Exception as e:
-            logger.error(f"Error in prediction: {e}")
-            raise
-    
-    def _format_explanation(self, explanations: Optional[List[Dict[str, Any]]], 
-                           prediction: int) -> List[Dict[str, Any]]:
-        """
-        Format SHAP explanations into user-friendly format.
-        
-        Args:
-            explanations: Raw SHAP explanations
-            prediction: Model prediction (0 or 1)
-            
-        Returns:
-            List of formatted explanations
-        """
-        if not explanations:
-            return []
-        
-        # Get top 5-6 features
-        top_features = explanations[:6]
-        
-        # Filter by sign based on prediction
-        if prediction == 1:
-            # For eligible: show positive contributors (strong points)
-            filtered = [f for f in top_features if f["shap_value"] > 0]
-            if not filtered:
-                filtered = top_features[:5]
-        else:
-            # For not eligible: show negative contributors (weak points)
-            filtered = [f for f in top_features if f["shap_value"] < 0]
-            if not filtered:
-                filtered = top_features[:5]
-        
-        # Format with user-friendly notes
-        formatted = []
-        for feat in filtered[:6]:
-            feature_name = feat["feature"]
-            shap_val = feat["shap_value"]
-            
-            # Generate user-friendly note
-            note = self._generate_feature_note(feature_name, shap_val, prediction)
-            
-            formatted.append({
-                "feature": feature_name,
-                "shap_value": round(shap_val, 4),
-                "note": note
-            })
-        
-        return formatted
-    
-    def _generate_feature_note(self, feature_name: str, shap_value: float, 
-                               prediction: int) -> str:
-        """
-        Generate a user-friendly note for a feature.
-        
-        Args:
-            feature_name: Name of the feature
-            shap_value: SHAP value
-            prediction: Model prediction
-            
-        Returns:
-            User-friendly note string
-        """
-        # Map feature names to user-friendly descriptions
-        feature_map = {
-            "Age": "Age",
-            "Gender": "Gender",
-            "MonthlyIncome": "Monthly Income",
-            "PreviousLoans": "Previous Loans",
-            "PreviousDefaults": "Previous Defaults",
-            "ConscientiousnessScore": "Conscientiousness",
-            "SHGMembership": "SHG Membership",
-            "SavingsFrequency": "Savings Frequency",
-            "BillPaymentTimeliness": "Bill Payment Timeliness"
-        }
-        
-        friendly_name = feature_map.get(feature_name, feature_name)
-        
-        if prediction == 1:
-            if shap_value > 0:
-                return f"Strong: {friendly_name} contributes positively to eligibility"
-            else:
-                return f"Note: {friendly_name} has some negative impact"
-        else:
-            if shap_value < 0:
-                return f"Weak: {friendly_name} reduces eligibility"
-            else:
-                return f"Note: {friendly_name} has some positive impact"
-    
-    def _get_next_step(self, prediction: int, probability: float) -> Dict[str, Any]:
-        """
-        Determine next step for user based on prediction.
-        
-        Args:
-            prediction: Model prediction (0 or 1)
-            probability: Prediction probability
-            
-        Returns:
-            Dictionary with next step information
-        """
-        if prediction == 0:
-            # Not eligible - route to wellness coach
-            return {
-                "action": "wellness_coach",
-                "message": "Based on your profile, we recommend connecting with our microfinance wellness coach to explore options for improving your eligibility.",
-                "redirect_url": "/wellness-coach"
-            }
-        else:
-            # Eligible - proceed with loan application
-            return {
-                "action": "proceed_application",
-                "message": "You appear eligible for a loan. Proceed with the application process.",
-                "redirect_url": "/application"
+            robustness = robustness_list[0] if isinstance(robustness_list, list) else {
+                "confidence_low": False,
+                "reasons": [],
+                "probability_margin": abs(float(np.atleast_1d(probs_pos)[0]) - 0.5)
             }
 
+            pred_val = int(np.atleast_1d(preds)[0])
+            prob_val = float(np.atleast_1d(probs_pos)[0])
+
+            # Update recent predictions
+            self.recent_predictions.append({
+                "prediction": pred_val,
+                "probability": prob_val,
+                "timestamp": datetime.now().isoformat()
+            })
+            if len(self.recent_predictions) > self.max_recent_predictions:
+                self.recent_predictions.pop(0)
+
+            # Format explanation into user-friendly list
+            formatted_explanation = []
+            if explanations:
+                first_expl = explanations[0] if isinstance(explanations, list) else explanations
+                if isinstance(first_expl, list):
+                    for e in first_expl[:6]:
+                        formatted_explanation.append({
+                            "feature": e.get("feature", "Unknown"),
+                            "shap_value": float(e.get("shap_value", 0.0)),
+                            "abs_shap": abs(float(e.get("shap_value", 0.0)))
+                        })
+
+            # Determine next step
+            if pred_val == 1:
+                next_step = {
+                    "action": "proceed_application",
+                    "message": "Proceed with loan application"
+                }
+            else:
+                next_step = {
+                    "action": "wellness_coach",
+                    "message": "Consider wellness coach to improve eligibility"
+                }
+
+            response = {
+                "prediction": pred_val,
+                "probability": prob_val,
+                "explanation": formatted_explanation,
+                "next_step": next_step,
+                "meta": {
+                    "confidence_low": robustness.get("confidence_low", False),
+                    "confidence_reasons": robustness.get("reasons", []),
+                    "probability_margin": robustness.get("probability_margin", abs(prob_val - 0.5)),
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+
+            # Telemetry logging
+            try:
+                log_feature_distribution(ml_features_df, user_id or "unknown_user", consent)
+            except Exception as e:
+                logger.debug(f"Telemetry logging failed: {e}")
+
+            # Save consented submission
+            if consent and user_id:
+                try:
+                    save_consented_submission(
+                        user_id,
+                        {
+                            "user_id": user_id,
+                            "timestamp": datetime.now().isoformat(),
+                            "ml_features": raw_inputs  # Store the structured features used
+                        },
+                        {
+                            "eligibility": "yes" if pred_val == 1 else "no",
+                            "risk_score": 1.0 - prob_val,
+                            "prediction": pred_val,
+                            "probability": prob_val,
+                            "explanation": formatted_explanation
+                        }
+                    )
+                    log_action("prediction_with_consent", user_id, {"prediction": pred_val})
+                except Exception as e:
+                    logger.error(f"Error saving consented submission: {e}")
+            else:
+                log_action("prediction_no_consent", user_id or "unknown", {"prediction": pred_val})
+
+            return response
+
+        except Exception as e:
+            logger.error(f"Error in prediction: {e}", exc_info=True)
+            raise
+
+    def predict_with_detailed_explanation(self, raw_inputs: Dict[str, Any], 
+                                      consent: bool = False, 
+                                      user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Enhanced prediction with detailed SHAP explanations and user-friendly interpretations.
+        
+        This method extends predict_from_raw_inputs with additional transparency features.
+        """
+        # Get base prediction
+        base_prediction = self.predict_from_raw_inputs(raw_inputs, consent, user_id)
+        
+        # Import the SHAP utilities
+        try:
+            from src.ml.shap_explainer import (
+                interpret_shap_value, 
+                generate_improvement_plan,
+                calculate_shap_statistics,
+                format_shap_for_user,
+                get_shap_educational_content
+            )
+            
+            # Enhance explanations with interpretations
+            enhanced_explanations = []
+            for exp in base_prediction.get("explanation", []):
+                feature = exp.get("feature", "Unknown")
+                shap_value = exp.get("shap_value", 0)
+                
+                # Get detailed interpretation
+                interpretation = interpret_shap_value(feature, shap_value)
+                
+                # Enhance the explanation dictionary
+                enhanced_exp = {
+                    **exp,
+                    "magnitude": interpretation.get("magnitude", "unknown"),
+                    "direction": interpretation.get("direction", "unknown"),
+                    "emoji": interpretation.get("emoji", "📊"),
+                    "summary": interpretation.get("summary", ""),
+                    "detail": interpretation.get("detail", ""),
+                    "insight": interpretation.get("insight", ""),
+                    "action": interpretation.get("action", ""),
+                    "user_friendly": format_shap_for_user(feature, shap_value)
+                }
+                enhanced_explanations.append(enhanced_exp)
+            
+            # Calculate statistics
+            stats = calculate_shap_statistics(base_prediction.get("explanation", []))
+            
+            # Generate improvement plan
+            improvement_plan = generate_improvement_plan(
+                base_prediction.get("explanation", []),
+                base_prediction.get("prediction", 0)
+            )
+            
+            # Get educational content
+            educational_content = get_shap_educational_content()
+            
+            # Enhance the response
+            enhanced_response = {
+                **base_prediction,
+                "explanation": enhanced_explanations,
+                "shap_statistics": stats,
+                "improvement_plan": improvement_plan,
+                "educational_content": educational_content,
+                "transparency": {
+                    "explanation_method": "SHAP (SHapley Additive exPlanations)",
+                    "explanation_type": "Local (instance-specific)",
+                    "model_type": "XGBoost Gradient Boosting Classifier",
+                    "features_used": len(enhanced_explanations),
+                    "explainability_score": "High",
+                    "audit_trail": {
+                        "timestamp": base_prediction.get("meta", {}).get("timestamp", ""),
+                        "model_version": "v1.0",
+                        "explanation_generated": True,
+                        "user_consent": consent
+                    }
+                }
+            }
+            
+            return enhanced_response
+            
+        except ImportError:
+            logger.warning("SHAP explainer utilities not available. Returning base prediction.")
+            return base_prediction
+        except Exception as e:
+            logger.error(f"Error generating enhanced explanations: {e}")
+            return base_prediction
+
+    def predict_from_profile(self, profile: Dict[str, Any], 
+                            consent: bool = False,
+                            user_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Make prediction from a full user profile (with unconventional data).
+        
+        This extracts only the ML features from the profile and makes prediction.
+        Unconventional data is ignored for ML prediction.
+        
+        Args:
+            profile: Full user profile (may include unconventional data)
+            consent: Whether user has given consent
+            user_id: User identifier
+            
+        Returns:
+            Dictionary with prediction results
+        """
+        # Extract ML features from profile
+        from src.ml.feature_converter import extract_ml_features_only
+        
+        ml_features = extract_ml_features_only(profile)
+        
+        # Make prediction using extracted features
+        return self.predict_from_raw_inputs(ml_features, consent, user_id)
