@@ -1,0 +1,104 @@
+{
+  "user_id": "user_gig_001",
+  "demographics": {
+    "age": 32,
+    "gender": "female",
+    "occupation": "gig_worker",
+    "monthly_income": 25000
+  },
+  "_raw_unconventional": {
+    "call_logs_30d": [
+      {"date": "2024-01-01T10:00:00", "contact": "contact_001", "duration": 120},
+      {"date": "2024-01-02T14:30:00", "contact": "contact_002", "duration": 90},
+      {"date": "2024-01-03T09:15:00", "contact": "contact_001", "duration": 200},
+      {"date": "2024-01-04T16:45:00", "contact": "contact_003", "duration": 150},
+      {"date": "2024-01-05T11:20:00", "contact": "contact_002", "duration": 180},
+      {"date": "2024-01-06T13:10:00", "contact": "contact_004", "duration": 100},
+      {"date": "2024-01-07T15:30:00", "contact": "contact_001", "duration": 140},
+      {"date": "2024-01-08T10:45:00", "contact": "contact_005", "duration": 110},
+      {"date": "2024-01-09T12:00:00", "contact": "contact_002", "duration": 160},
+      {"date": "2024-01-10T14:20:00", "contact": "contact_003", "duration": 130},
+      {"date": "2024-01-11T09:30:00", "contact": "contact_001", "duration": 170},
+      {"date": "2024-01-12T16:00:00", "contact": "contact_006", "duration": 95},
+      {"date": "2024-01-13T11:15:00", "contact": "contact_002", "duration": 145},
+      {"date": "2024-01-14T13:45:00", "contact": "contact_004", "duration": 125},
+      {"date": "2024-01-15T10:30:00", "contact": "contact_001", "duration": 155},
+      {"date": "2024-01-16T15:10:00", "contact": "contact_003", "duration": 135},
+      {"date": "2024-01-17T12:20:00", "contact": "contact_005", "duration": 115},
+      {"date": "2024-01-18T14:00:00", "contact": "contact_002", "duration": 165},
+      {"date": "2024-01-19T09:45:00", "contact": "contact_001", "duration": 140},
+      {"date": "2024-01-20T16:30:00", "contact": "contact_006", "duration": 120},
+      {"date": "2024-01-21T11:00:00", "contact": "contact_004", "duration": 150},
+      {"date": "2024-01-22T13:20:00", "contact": "contact_002", "duration": 110},
+      {"date": "2024-01-23T10:15:00", "contact": "contact_001", "duration": 180},
+      {"date": "2024-01-24T15:45:00", "contact": "contact_003", "duration": 125},
+      {"date": "2024-01-25T12:30:00", "contact": "contact_005", "duration": 145},
+      {"date": "2024-01-26T14:10:00", "contact": "contact_002", "duration": 130},
+      {"date": "2024-01-27T09:20:00", "contact": "contact_001", "duration": 160},
+      {"date": "2024-01-28T16:15:00", "contact": "contact_004", "duration": 105},
+      {"date": "2024-01-29T11:45:00", "contact": "contact_003", "duration": 175},
+      {"date": "2024-01-30T13:00:00", "contact": "contact_002", "duration": 140}
+    ],
+    "airtime_topups_30d": [
+      {"date": "2024-01-01", "amount": 100},
+      {"date": "2024-01-05", "amount": 150},
+      {"date": "2024-01-10", "amount": 100},
+      {"date": "2024-01-15", "amount": 200},
+      {"date": "2024-01-20", "amount": 100},
+      {"date": "2024-01-25", "amount": 150},
+      {"date": "2024-01-30", "amount": 100}
+    ],
+    "psychometric_responses": {
+      "C_q1": 4,
+      "C_q2": 5,
+      "C_q3": 4,
+      "C_q4": 5,
+      "C_q5": 4,
+      "E_q1": 3,
+      "E_q2": 4,
+      "O_q1": 3,
+      "O_q2": 4,
+      "A_q1": 4,
+      "A_q2": 5,
+      "N_q1": 2,
+      "N_q2": 3
+    },
+    "savings_history_90d": [
+      {"date": "2024-01-01", "amount": 2000},
+      {"date": "2024-01-08", "amount": 2500},
+      {"date": "2024-01-15", "amount": 2000},
+      {"date": "2024-01-22", "amount": 3000},
+      {"date": "2024-01-29", "amount": 2000},
+      {"date": "2024-02-05", "amount": 2500},
+      {"date": "2024-02-12", "amount": 2000},
+      {"date": "2024-02-19", "amount": 3000},
+      {"date": "2024-02-26", "amount": 2000},
+      {"date": "2024-03-05", "amount": 2500},
+      {"date": "2024-03-12", "amount": 2000},
+      {"date": "2024-03-19", "amount": 3000}
+    ],
+    "wallet_balance_timeseries_90d": [
+      {"date": "2024-01-01", "balance": 5000},
+      {"date": "2024-01-02", "balance": 5200},
+      {"date": "2024-01-03", "balance": 4800},
+      {"date": "2024-01-04", "balance": 5500},
+      {"date": "2024-01-05", "balance": 5000}
+    ],
+    "transaction_history_180d": [
+      {"date": "2024-01-01", "type": "bill", "amount": 500, "on_time": true},
+      {"date": "2024-01-15", "type": "bill", "amount": 600, "on_time": true},
+      {"date": "2024-02-01", "type": "bill", "amount": 550, "on_time": true},
+      {"date": "2024-02-15", "type": "bill", "amount": 500, "on_time": true},
+      {"date": "2024-03-01", "type": "bill", "amount": 600, "on_time": true}
+    ],
+    "shg_membership_info": {
+      "is_member": true,
+      "peer_monitoring_score": 0.85
+    },
+    "loan_history": [
+      {"loan_id": "loan_001", "amount": 10000, "defaulted": false, "late_payment": false, "delay_days": 0},
+      {"loan_id": "loan_002", "amount": 15000, "defaulted": false, "late_payment": true, "delay_days": 2}
+    ]
+  }
+}
+

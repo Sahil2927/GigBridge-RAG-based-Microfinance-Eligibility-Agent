@@ -1,0 +1,67 @@
+{
+  "user_id": "user_not_eligible_001",
+  "demographics": {
+    "age": 35,
+    "gender": "male",
+    "occupation": "daily_wage_worker",
+    "monthly_income": 12000
+  },
+  "_raw_unconventional": {
+    "call_logs_30d": [
+      {"date": "2024-01-01T10:00:00", "contact": "contact_001", "duration": 50},
+      {"date": "2024-01-10T14:30:00", "contact": "contact_002", "duration": 30},
+      {"date": "2024-01-20T09:15:00", "contact": "contact_001", "duration": 40}
+    ],
+    "airtime_topups_30d": [
+      {"date": "2024-01-01", "amount": 50},
+      {"date": "2024-01-15", "amount": 100},
+      {"date": "2024-01-20", "amount": 30},
+      {"date": "2024-01-25", "amount": 50},
+      {"date": "2024-01-28", "amount": 20}
+    ],
+    "psychometric_responses": {
+      "C_q1": 2,
+      "C_q2": 2,
+      "C_q3": 1,
+      "C_q4": 2,
+      "C_q5": 1,
+      "E_q1": 3,
+      "E_q2": 2,
+      "O_q1": 2,
+      "O_q2": 1,
+      "A_q1": 2,
+      "A_q2": 2,
+      "N_q1": 4,
+      "N_q2": 5
+    },
+    "savings_history_90d": [
+      {"date": "2024-01-01", "amount": 500},
+      {"date": "2024-01-20", "amount": 300},
+      {"date": "2024-02-10", "amount": 400}
+    ],
+    "wallet_balance_timeseries_90d": [
+      {"date": "2024-01-01", "balance": 500},
+      {"date": "2024-01-02", "balance": 200},
+      {"date": "2024-01-03", "balance": 100},
+      {"date": "2024-01-04", "balance": 300},
+      {"date": "2024-01-05", "balance": 150}
+    ],
+    "transaction_history_180d": [
+      {"date": "2024-01-01", "type": "bill", "amount": 300, "on_time": false},
+      {"date": "2024-01-15", "type": "bill", "amount": 350, "on_time": false},
+      {"date": "2024-02-01", "type": "bill", "amount": 300, "on_time": true},
+      {"date": "2024-02-15", "type": "bill", "amount": 350, "on_time": false},
+      {"date": "2024-03-01", "type": "bill", "amount": 300, "on_time": false}
+    ],
+    "shg_membership_info": {
+      "is_member": false,
+      "peer_monitoring_score": 0.0
+    },
+    "loan_history": [
+      {"loan_id": "loan_001", "amount": 5000, "defaulted": true, "late_payment": true, "delay_days": 30},
+      {"loan_id": "loan_002", "amount": 8000, "defaulted": true, "late_payment": true, "delay_days": 45},
+      {"loan_id": "loan_003", "amount": 6000, "defaulted": false, "late_payment": true, "delay_days": 15}
+    ]
+  }
+}
+

@@ -1,0 +1,56 @@
+{
+  "user_id": "user_borderline_001",
+  "demographics": {
+    "age": 28,
+    "gender": "male",
+    "occupation": "small_business_owner",
+    "monthly_income": 18000
+  },
+  "_raw_unconventional": {
+    "call_logs_30d": [
+      {"date": "2024-01-05T10:00:00", "contact": "contact_001", "duration": 100},
+      {"date": "2024-01-10T14:30:00", "contact": "contact_002", "duration": 80},
+      {"date": "2024-01-15T09:15:00", "contact": "contact_001", "duration": 120},
+      {"date": "2024-01-20T16:45:00", "contact": "contact_003", "duration": 90},
+      {"date": "2024-01-25T11:20:00", "contact": "contact_002", "duration": 110}
+    ],
+    "airtime_topups_30d": [
+      {"date": "2024-01-01", "amount": 200},
+      {"date": "2024-01-10", "amount": 150},
+      {"date": "2024-01-20", "amount": 200},
+      {"date": "2024-01-30", "amount": 150}
+    ],
+    "psychometric_responses": {},
+    "savings_history_90d": [
+      {"date": "2024-01-01", "amount": 1500},
+      {"date": "2024-01-15", "amount": 1500},
+      {"date": "2024-02-01", "amount": 1500},
+      {"date": "2024-02-15", "amount": 1500},
+      {"date": "2024-03-01", "amount": 1500},
+      {"date": "2024-03-15", "amount": 1500}
+    ],
+    "wallet_balance_timeseries_90d": [
+      {"date": "2024-01-01", "balance": 3000},
+      {"date": "2024-01-02", "balance": 3200},
+      {"date": "2024-01-03", "balance": 2800},
+      {"date": "2024-01-04", "balance": 3100},
+      {"date": "2024-01-05", "balance": 3000}
+    ],
+    "transaction_history_180d": [
+      {"date": "2024-01-01", "type": "bill", "amount": 400, "on_time": true},
+      {"date": "2024-01-15", "type": "bill", "amount": 450, "on_time": true},
+      {"date": "2024-02-01", "type": "bill", "amount": 400, "on_time": true},
+      {"date": "2024-02-15", "type": "bill", "amount": 450, "on_time": false},
+      {"date": "2024-03-01", "type": "bill", "amount": 400, "on_time": true}
+    ],
+    "shg_membership_info": {
+      "is_member": false,
+      "peer_monitoring_score": 0.0
+    },
+    "loan_history": [
+      {"loan_id": "loan_001", "amount": 8000, "defaulted": false, "late_payment": true, "delay_days": 5}
+    ]
+  }
+}
+
+
