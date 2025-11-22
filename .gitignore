@@ -5,46 +5,60 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
 eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.whl
 
 # Virtual environments
 venv/
+.venv/
 env/
 ENV/
+ENV.bak/
 
-# IDE
+# IDEs/editors
 .vscode/
 .idea/
-*.swp
 *.swo
+*.swp
 *~
+*.komodoproject
 
-# Data files (generated)
+# Node (if exists)
+node_modules/
+
+# Data & models (do NOT commit large raw data or checkpoints)
+models/
+models/*
+!models/README.md        # keep a small README or pointer file if needed
+data/
+datasets/
+data/*
+datasets/*
 data/faiss_index.bin
 data/metadata.jsonl
 data/memory.json
 data/bank_unstructured_db.jsonl
 data/consented_submissions/*.json
 
+# Checkpoints, outputs, artifacts
+checkpoints/
+outputs/
+results/
+runs/
+
 # Logs
+logs/
+*.log
 logs/*.log
 
-# Environment variables
+# Environment variables / secrets
 .env
 .env.local
+secrets.json
 
 # Jupyter
 .ipynb_checkpoints/
@@ -54,11 +68,14 @@ logs/*.log
 .DS_Store
 Thumbs.db
 
-# Streamlit
+# Streamlit local state
 .streamlit/
 
-# Temporary files
+# Temporary and backup files
 *.tmp
 *.bak
-
-
+*.cache
+*.sqlite
+*.db
+*.pkl
+*.ckpt
