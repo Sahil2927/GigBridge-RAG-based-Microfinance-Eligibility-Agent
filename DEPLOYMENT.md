@@ -72,7 +72,7 @@ In the Streamlit Cloud app: **Settings → Secrets**, paste:
 
 ```toml
 GROQ_API_KEY = "gsk_xxxxxxxxxxxxxxxx"
-GROQ_MODEL_NAME = "mixtral-8x7b-32768"
+GROQ_MODEL_NAME = "llama-3.1-8b-instant"
 ADMIN_PASSWORD = "choose-a-strong-password"
 ```
 

@@ -32,7 +32,7 @@ def get_groq_api_key() -> Optional[str]:
 
 
 def get_groq_model_name() -> str:
-    return get_config("GROQ_MODEL_NAME", "mixtral-8x7b-32768")
+    return get_config("GROQ_MODEL_NAME", "llama-3.1-8b-instant")
 
 
 def get_admin_password() -> str:
