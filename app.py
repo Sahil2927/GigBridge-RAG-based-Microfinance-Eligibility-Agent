@@ -292,7 +292,15 @@ python scripts/export_model_from_notebook.py
         
         # Check RAG prerequisites
         if not check_groq_api_key():
-            st.warning("⚠️ GROQ_API_KEY not configured. RAG assessment will be unavailable.")
+            st.warning(
+                "⚠️ GROQ_API_KEY not configured. RAG assessment will be unavailable.\n\n"
+                "**Streamlit Cloud:** open **Manage app → Settings → Secrets**, add:\n"
+                "```toml\n"
+                "GROQ_API_KEY = \"gsk_your_key_here\"\n"
+                "GROQ_MODEL_NAME = \"llama-3.1-8b-instant\"\n"
+                "```\n"
+                "Then click **Save** and **Reboot app**."
+            )
         
         index_path = Path("./data/faiss_index.bin")
         metadata_path = Path("./data/metadata.jsonl")
