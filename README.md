@@ -21,7 +21,7 @@ This system:
 - Provides a Streamlit UI for user interaction
 - Stores consented submissions in a bank database (sandbox)
 
-This system supports two complementary assessment paths:
+- Supports two complementary assessment paths:
 
 | Path | Input | Engine | Output |
 |------|--------|--------|--------|
