@@ -5,6 +5,7 @@ faiss-cpu>=1.7.4
 groq>=0.4.0
 streamlit>=1.28.0
 torch>=2.0.0  # PyTorch backend for sentence-transformers (avoids TensorFlow issues)
+torchvision>=0.15.0  # Required by transformers (sentence-transformers / FAISS bootstrap)
 
 # Optional dependencies (for fallback PDF extraction)
 pdfminer.six>=20221105
