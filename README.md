@@ -23,6 +23,8 @@ This system:
 
 ## 🚀 Quick Start
 
+> **Deploy to Streamlit Cloud:** see [DEPLOYMENT.md](DEPLOYMENT.md) for the full end-to-end guide.
+
 ### Prerequisites
 
 - Python 3.8+

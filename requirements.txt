@@ -20,4 +20,8 @@ joblib>=1.3.0
 numpy>=1.24.0
 python-dateutil>=2.8.2
 python-dotenv>=1.0.0
+plotly>=5.18.0
+
+# Dev / CI (optional locally)
+pytest>=7.4.0
 

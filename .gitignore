@@ -69,7 +69,10 @@ secrets.json
 Thumbs.db
 
 # Streamlit local state
-.streamlit/
+.streamlit/*
+!.streamlit/config.toml
+!.streamlit/secrets.toml.example
+.streamlit/secrets.toml
 
 # Temporary and backup files
 *.tmp

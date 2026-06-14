@@ -99,6 +99,11 @@ class ChunkRetriever:
                 chunk = self.chunks[idx].copy()
                 chunk['score'] = float(score)
                 chunk['rank'] = i + 1
+                if 'paper_title' not in chunk:
+                    chunk['paper_title'] = chunk.get(
+                        'source_file',
+                        chunk.get('paper', 'Unknown')
+                    )
                 retrieved_chunks.append(chunk)
         
         logger.info(f"Retrieved {len(retrieved_chunks)} chunks for query: '{query[:50]}...'")

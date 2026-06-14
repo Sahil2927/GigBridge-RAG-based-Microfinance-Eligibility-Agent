@@ -17,9 +17,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
 import pandas as pd
-import pandas as pd
 import plotly.graph_objects as go
-from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +36,8 @@ from src.memory.store import (
     save_consented_submission, get_bank_submissions, log_action
 )
 from src.utils.validators import validate_profile_schema, sanitize_profile
+from src.utils.config import get_groq_api_key, get_groq_model_name, get_admin_password
+from src.setup.artifacts import get_artifact_status
 
 # Page config
 st.set_page_config(
@@ -69,8 +69,10 @@ with st.sidebar:
     
     page = st.radio(
         "Select Page",
-        ["Assessment", "Admin View", "Wellness Coach","Transparency & Ethics"],
-        index=0 if st.session_state.page == "Assessment" else (1 if st.session_state.page == "Admin View" else 2),
+        ["Assessment", "Admin View", "Wellness Coach", "Transparency & Ethics"],
+        index=["Assessment", "Admin View", "Wellness Coach", "Transparency & Ethics"].index(
+            st.session_state.page if st.session_state.page in ["Assessment", "Admin View", "Wellness Coach", "Transparency & Ethics"] else "Assessment"
+        ),
         label_visibility="collapsed"
     )
     st.session_state.page = page
@@ -88,11 +90,32 @@ with st.sidebar:
 
 def check_groq_api_key():
     """Check if GROQ API key is configured."""
-    api_key = os.getenv("GROQ_API_KEY")
-    return api_key and api_key != "your-groq-api-key-here"
+    return get_groq_api_key() is not None
+
+
+@st.cache_resource(show_spinner="Setting up ML model and knowledge base (first run ~30–90s)...")
+def ensure_runtime_artifacts():
+    """Build demo artifacts when missing (required on Streamlit Cloud cold starts)."""
+    if os.getenv("SKIP_BOOTSTRAP", "").lower() in ("1", "true", "yes"):
+        return get_artifact_status()
+
+    from src.setup.artifacts import bootstrap_if_needed
+
+    status = get_artifact_status()
+    if status["model_ready"] and status["kb_ready"]:
+        return status
+
+    quick = os.getenv("BOOTSTRAP_QUICK", "true").lower() not in ("0", "false", "no")
+    return bootstrap_if_needed(quick=quick)
 
 
 def main():
+    artifact_status = ensure_runtime_artifacts()
+    if not artifact_status.get("model_ready"):
+        st.error("ML model is not available. Check logs or run: python scripts/bootstrap.py")
+    if not artifact_status.get("kb_ready"):
+        st.warning("RAG knowledge base is not ready. RAG assessments will be unavailable.")
+
     if st.session_state.page == "Assessment":
         assessment_page()
     elif st.session_state.page == "Admin View":
@@ -415,8 +438,8 @@ python scripts/export_model_from_notebook.py
                         if not check_groq_api_key():
                             st.error("❌ GROQ_API_KEY not configured. Cannot run RAG assessment.")
                         else:
-                            api_key = os.getenv("GROQ_API_KEY")
-                            model_name = os.getenv("GROQ_MODEL_NAME", "mixtral-8x7b-32768")
+                            api_key = get_groq_api_key()
+                            model_name = get_groq_model_name()
                             
                             with st.spinner("Running RAG assessment..."):
                                 try:
@@ -1754,13 +1777,13 @@ def admin_page():
             "Admin Password", 
             type="password", 
             key="admin_pwd",
-            help="Default password: admin123"
+            help="Default password: admin123 (override with ADMIN_PASSWORD secret/env)"
         )
         
         col1, col2, col3 = st.columns([1, 1, 2])
         with col1:
             if st.button("🔓 Login", type="primary"):
-                if admin_password == "admin123":
+                if admin_password == get_admin_password():
                     st.session_state.admin_authenticated = True
                     st.success("✅ Authentication successful!")
                     st.rerun()

@@ -26,12 +26,13 @@ sys.path.insert(0, str(project_root))
 models_dir = project_root / "models"
 models_dir.mkdir(exist_ok=True)
 
-def train_and_export_model(csv_path: Optional[str] = None):
+def train_and_export_model(csv_path: Optional[str] = None, quick: bool = False):
     """
     Train the XGBoost model and export it.
     
     Args:
         csv_path: Path to the loan data CSV. If None, looks for data/Loan_default.csv
+        quick: Faster training with fewer trees (for cloud cold starts)
     """
     # Find CSV file
     if csv_path is None:
@@ -78,12 +79,17 @@ def train_and_export_model(csv_path: Optional[str] = None):
         ]
     )
     
+    pos = max(int(y.sum()), 1)
+    neg = max(int(len(y) - y.sum()), 1)
+
     # Model with balancing
     xgb = XGBClassifier(
-        scale_pos_weight=len(y[y==0]) / len(y[y==1]),
-        n_estimators=500,
-        learning_rate=0.05,
-        eval_metric="logloss"
+        scale_pos_weight=neg / pos,
+        n_estimators=80 if quick else 500,
+        learning_rate=0.08 if quick else 0.05,
+        max_depth=4 if quick else 6,
+        eval_metric="logloss",
+        random_state=42,
     )
     
     # Build pipeline
@@ -123,9 +129,14 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description="Train and export XGBoost loan prediction model")
     parser.add_argument("--csv-path", type=str, help="Path to Loan_default.csv file")
+    parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Faster training (fewer trees) for demo/cloud bootstrap",
+    )
     
     args = parser.parse_args()
     
-    success = train_and_export_model(args.csv_path)
+    success = train_and_export_model(args.csv_path, quick=args.quick)
     sys.exit(0 if success else 1)
 

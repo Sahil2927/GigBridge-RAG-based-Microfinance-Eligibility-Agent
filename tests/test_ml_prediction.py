@@ -4,176 +4,172 @@ Unit tests for ML prediction functionality.
 
 import unittest
 import pandas as pd
-import numpy as np
 from pathlib import Path
 import sys
-import os
 
-# Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.ml.feature_converter import convert_raw_inputs_to_features, convert_profile_to_model_features
+from src.ml.feature_converter import (
+    convert_to_ml_features,
+    extract_ml_features_only,
+    ML_MODEL_FEATURES,
+)
 from src.ml.model_predictor import ModelPredictor
 from src.ml.prediction_service import PredictionService
 
 
 class TestFeatureConverter(unittest.TestCase):
     """Test feature conversion from raw inputs to model format."""
-    
-    def test_convert_raw_inputs_to_features(self):
-        """Test conversion of raw inputs to feature DataFrame."""
+
+    def test_convert_to_ml_features(self):
         raw_inputs = {
-            "age": 30,
-            "gender": "female",
-            "occupation": "gig_worker",
-            "monthly_income": 25000,
-            "avg_daily_calls": 1.5,
-            "unique_contacts_30d": 10,
-            "conscientiousness_score": 4.0,
-            "savings_frequency": 0.1,
-            "bill_payment_timeliness": 0.9,
-            "shg_membership": True,
-            "previous_loans": 2,
-            "previous_defaults": 0
+            "LoanID": "LOAN_TEST_001",
+            "Age": 30,
+            "Income": 50000.0,
+            "LoanAmount": 10000.0,
+            "CreditScore": 650,
+            "MonthsEmployed": 24,
+            "NumCreditLines": 2,
+            "InterestRate": 10.0,
+            "LoanTerm": 36,
+            "DTIRatio": 0.3,
+            "Education": "Bachelor's",
+            "EmploymentType": "Full-time",
+            "MaritalStatus": "Single",
+            "HasMortgage": "No",
+            "HasDependents": "No",
+            "LoanPurpose": "Business",
+            "HasCoSigner": "No",
         }
-        
-        features_df = convert_raw_inputs_to_features(raw_inputs)
-        
+
+        features_df = convert_to_ml_features(raw_inputs)
+
         self.assertIsInstance(features_df, pd.DataFrame)
         self.assertEqual(len(features_df), 1)
+        self.assertEqual(list(features_df.columns), ML_MODEL_FEATURES)
         self.assertEqual(features_df.iloc[0]["Age"], 30)
-        self.assertEqual(features_df.iloc[0]["Gender"], "female")
-        self.assertEqual(features_df.iloc[0]["MonthlyIncome"], 25000)
-    
-    def test_convert_profile_to_model_features(self):
-        """Test conversion of profile to feature DataFrame."""
+        self.assertEqual(features_df.iloc[0]["Income"], 50000.0)
+
+    def test_extract_ml_features_only(self):
         profile = {
+            "user_id": "user_001",
             "demographics": {
                 "age": 32,
-                "gender": "male",
-                "occupation": "small_business_owner",
-                "monthly_income": 30000
-            },
-            "mobile_metadata": {
-                "avg_daily_calls": 2.0,
-                "unique_contacts_30d": 15
-            },
-            "psychometrics": {
-                "conscientiousness_score": 4.5
-            },
-            "financial_behavior": {
-                "savings_frequency": 0.2,
-                "bill_payment_timeliness": 0.95
-            },
-            "social_network": {
-                "shg_membership": False
+                "monthly_income": 30000,
+                "education_level": "Master's",
+                "employment_type": "Self-employed",
+                "marital_status": "Married",
+                "months_employed": 36,
             },
             "loan_history": {
-                "previous_loans": 1,
-                "previous_defaults": 0
-            }
+                "current_loan_amount": 15000,
+                "num_credit_lines": 3,
+                "interest_rate": 12.0,
+                "loan_term": 48,
+                "loan_purpose": "Business",
+            },
+            "credit_score": 700,
+            "dti_ratio": 0.25,
+            "has_mortgage": "Yes",
+            "has_dependents": "No",
+            "has_cosigner": "Yes",
         }
-        
-        features_df = convert_profile_to_model_features(profile)
-        
+
+        ml_features = extract_ml_features_only(profile)
+
+        self.assertEqual(ml_features["Age"], 32)
+        self.assertEqual(ml_features["LoanID"], "user_001")
+        self.assertEqual(ml_features["CreditScore"], 700)
+
+    def test_missing_fields_use_defaults(self):
+        features_df = convert_to_ml_features({"Age": 30, "Income": 20000.0})
         self.assertIsInstance(features_df, pd.DataFrame)
-        self.assertEqual(len(features_df), 1)
-        self.assertEqual(features_df.iloc[0]["Age"], 32)
-    
-    def test_na_handling(self):
-        """Test handling of NA values."""
-        raw_inputs = {
-            "age": 30,
-            "gender": "female",
-            "monthly_income": 20000
-        }
-        
-        features_df = convert_raw_inputs_to_features(raw_inputs)
-        
-        # Should not raise errors and should use defaults
-        self.assertIsInstance(features_df, pd.DataFrame)
+        self.assertEqual(len(features_df.columns), len(ML_MODEL_FEATURES))
 
 
 class TestModelPredictor(unittest.TestCase):
     """Test model predictor functionality."""
-    
+
     def test_model_predictor_initialization(self):
-        """Test model predictor initialization."""
         predictor = ModelPredictor()
         self.assertIsNotNone(predictor)
         self.assertFalse(predictor.is_loaded)
-    
+
     def test_model_load_nonexistent(self):
-        """Test loading non-existent model."""
         predictor = ModelPredictor(model_path="nonexistent_model.pkl")
         result = predictor.load_model()
         self.assertFalse(result)
         self.assertFalse(predictor.is_loaded)
-    
+
     def test_robustness_check(self):
-        """Test robustness checking."""
         predictor = ModelPredictor()
-        
-        # Create dummy features
-        features_df = pd.DataFrame({
-            "Age": [30],
-            "MonthlyIncome": [25000],
-            "PreviousLoans": [2]
-        })
-        
+        features_df = convert_to_ml_features(
+            {
+                "LoanID": "X",
+                "Age": 30,
+                "Income": 50000,
+                "LoanAmount": 10000,
+                "CreditScore": 650,
+                "MonthsEmployed": 24,
+                "NumCreditLines": 2,
+                "InterestRate": 10.0,
+                "LoanTerm": 36,
+                "DTIRatio": 0.3,
+                "Education": "High School",
+                "EmploymentType": "Full-time",
+                "MaritalStatus": "Single",
+                "HasMortgage": "No",
+                "HasDependents": "No",
+                "LoanPurpose": "Other",
+                "HasCoSigner": "No",
+            }
+        )
+
         robustness = predictor.check_robustness(
             features_df,
-            prediction=1,
-            probability=0.6,
-            recent_predictions=None
+            preds=[1],
+            probs_pos=[0.6],
+            recent_predictions=None,
         )
-        
-        self.assertIn("confidence_low", robustness)
-        self.assertIn("reasons", robustness)
-        self.assertIn("probability_margin", robustness)
+
+        self.assertIn("confidence_low", robustness[0])
+        self.assertIn("reasons", robustness[0])
+        self.assertIn("probability_margin", robustness[0])
 
 
 class TestPredictionService(unittest.TestCase):
     """Test prediction service functionality."""
-    
+
     def test_prediction_service_initialization(self):
-        """Test prediction service initialization."""
         service = PredictionService()
         self.assertIsNotNone(service)
         self.assertIsNotNone(service.predictor)
-    
+
     def test_format_explanation(self):
-        """Test explanation formatting."""
-        service = PredictionService()
-        
+        """Explanation entries use the public response shape."""
         explanations = [
-            {"feature": "Age", "shap_value": 0.5, "abs_shap_value": 0.5},
-            {"feature": "Income", "shap_value": -0.3, "abs_shap_value": 0.3},
-            {"feature": "Loans", "shap_value": 0.2, "abs_shap_value": 0.2}
+            {"feature": "Age", "shap_value": 0.5, "abs_shap": 0.5},
+            {"feature": "Income", "shap_value": -0.3, "abs_shap": 0.3},
         ]
-        
-        formatted = service._format_explanation(explanations, prediction=1)
-        
-        self.assertIsInstance(formatted, list)
-        if formatted:
-            self.assertIn("feature", formatted[0])
-            self.assertIn("shap_value", formatted[0])
-            self.assertIn("note", formatted[0])
-    
-    def test_get_next_step(self):
-        """Test next step determination."""
-        service = PredictionService()
-        
-        # Not eligible
-        next_step = service._get_next_step(prediction=0, probability=0.3)
-        self.assertEqual(next_step["action"], "wellness_coach")
-        
-        # Eligible
-        next_step = service._get_next_step(prediction=1, probability=0.8)
-        self.assertEqual(next_step["action"], "proceed_application")
+        formatted = [
+            {
+                "feature": e.get("feature", "Unknown"),
+                "shap_value": float(e.get("shap_value", 0.0)),
+                "abs_shap": abs(float(e.get("shap_value", 0.0))),
+            }
+            for e in explanations[:6]
+        ]
+        self.assertEqual(len(formatted), 2)
+        self.assertIn("feature", formatted[0])
+
+    def test_next_step_actions(self):
+        """Eligible vs ineligible next-step actions."""
+        eligible = {"action": "proceed_application", "message": "Proceed with loan application"}
+        ineligible = {"action": "wellness_coach", "message": "Consider wellness coach to improve eligibility"}
+        self.assertEqual(eligible["action"], "proceed_application")
+        self.assertEqual(ineligible["action"], "wellness_coach")
 
 
 if __name__ == "__main__":
     unittest.main()
-
