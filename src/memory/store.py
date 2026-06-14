@@ -15,22 +15,25 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 from pathlib import Path
 
+LOG_DIR = Path("logs")
+DATA_DIR = Path("data")
+CONSENT_DIR = DATA_DIR / "consented_submissions"
+
+# Ensure directories exist before FileHandler is created
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+CONSENT_DIR.mkdir(parents=True, exist_ok=True)
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('logs/actions.log'),
+        logging.FileHandler(LOG_DIR / "actions.log"),
         logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
-
-
-# Ensure directories exist
-os.makedirs("data", exist_ok=True)
-os.makedirs("data/consented_submissions", exist_ok=True)
-os.makedirs("logs", exist_ok=True)
 
 
 def load_memory() -> Dict[str, Any]:
