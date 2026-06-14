@@ -1,6 +1,6 @@
 # GigBridge — RAG-based Microfinance Eligibility Agent
 
-A dual-engine microfinance eligibility platform combining **XGBoost + SHAP** (structured loan data) and **RAG + Groq LLM** (unconventional behavioral data), with ethical consent flows and a Streamlit UI.
+A dual-engine microfinance eligibility platform combining **XGBoost + SHAP** (structured loan data) and **RAG + Groq LLM** (unconventional behavioral data), with ethical consent flows and a Streamlit UI for assessing microfinance eligibility using unconventional data sources (mobile metadata, psychometrics, financial behavior, social networks) and research evidence.
 
 ## Live demo
 
