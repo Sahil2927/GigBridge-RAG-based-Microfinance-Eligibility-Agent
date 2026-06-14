@@ -12,6 +12,15 @@ A dual-engine microfinance eligibility platform combining **XGBoost + SHAP** (st
 
 ## Overview
 
+This system:
+
+- Ingests research PDFs to build a knowledge base
+- Accepts user profiles with unconventional data (mobile metadata, psychometrics, etc.)
+- Uses RAG to assess eligibility based on research evidence
+- Implements ethical-by-design consent mechanisms
+- Provides a Streamlit UI for user interaction
+- Stores consented submissions in a bank database (sandbox)
+
 This system supports two complementary assessment paths:
 
 | Path | Input | Engine | Output |
