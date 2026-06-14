@@ -429,4 +429,4 @@ Provided as-is for research and educational purposes.
 
 ---
 
-**Built for ethical AI in microfinance** · [Live demo](https://gigbridge.streamlit.app/)
+**Built with ❤️ for ethical AI in microfinance** · [Live demo](https://gigbridge.streamlit.app/)
